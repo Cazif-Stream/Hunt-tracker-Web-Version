@@ -506,6 +506,7 @@ function App() {
     const [activeTab, setActiveTab] = React.useState('items');
     const [selectedDrop, setSelectedDrop] = React.useState(null);
     const [importModal, setImportModal] = React.useState(null);
+    const [showHelp, setShowHelp] = React.useState(() => !localStorage.getItem('huntSeenHelp'));
     const fileInputRef = React.useRef(null);
 
     React.useEffect(() => { localStorage.setItem('huntPlayer', player); }, [player]);
@@ -707,7 +708,39 @@ function App() {
             
             <header className="header">
                 <div className="header-top">
-                    <h1 className="title hunt-font">THE HUNT - BL4 CHARITY 2026</h1>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+                        <img 
+                            src="logo.png" 
+                            alt="Hunt Logo" 
+                            style={{width: '60px', height: '60px', borderRadius: '50%', border: '2px solid var(--gold)'}}
+                            onError={(e) => e.target.style.display = 'none'}
+                        />
+                        <div>
+                            <h1 className="title hunt-font">THE HUNT - BL4 CHARITY 2026</h1>
+                            <a 
+                                href="https://thehuntbl4.com" 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                style={{color: 'var(--yellow)', fontSize: '12px', textDecoration: 'none'}}
+                            >
+                                🌐 thehuntbl4.com
+                            </a>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={() => setShowHelp(true)}
+                        style={{
+                            background: 'var(--gold)',
+                            color: 'var(--dark)',
+                            border: 'none',
+                            borderRadius: '50%',
+                            width: '30px',
+                            height: '30px',
+                            fontSize: '16px',
+                            cursor: 'pointer',
+                            fontWeight: 'bold'
+                        }}
+                    >?</button>
                     <div className="header-stats">
                         <div className="stat-box">
                             <div className="stat-label">Score</div>
@@ -916,6 +949,72 @@ function App() {
                         <p style={{color: 'var(--yellow)', fontSize: '11px', marginTop: '10px'}}>
                             <strong>Replace:</strong> Clears current data and loads backup<br/>
                             <strong>Merge:</strong> Adds backup drops to current session
+                        </p>
+                    </div>
+                </div>
+            )}
+            
+            {/* Help/Instructions Modal */}
+            {showHelp && (
+                <div className="modal-overlay" onClick={() => { setShowHelp(false); localStorage.setItem('huntSeenHelp', 'true'); }}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{maxWidth: '500px'}}>
+                        <h3 className="modal-title hunt-font">🎯 WELCOME TO THE HUNT TRACKER</h3>
+                        
+                        <div style={{color: 'var(--white)', fontSize: '13px', lineHeight: '1.6'}}>
+                            <p style={{marginBottom: '12px'}}><strong style={{color: 'var(--gold)'}}>How to use:</strong></p>
+                            
+                            <p style={{marginBottom: '8px'}}>
+                                <strong>1.</strong> Enter your <strong style={{color: 'var(--gold)'}}>Player Name</strong> at the top
+                            </p>
+                            
+                            <p style={{marginBottom: '8px'}}>
+                                <strong>2.</strong> Click <strong style={{color: 'var(--gold)'}}>START</strong> when you begin your run
+                            </p>
+                            
+                            <p style={{marginBottom: '8px'}}>
+                                <strong>3.</strong> When you get a drop, find it in the list and click <strong style={{color: 'var(--gold)'}}>Record</strong>
+                            </p>
+                            
+                            <p style={{marginBottom: '8px'}}>
+                                <strong>4.</strong> Go to <strong style={{color: 'var(--gold)'}}>Clips</strong> tab to add clip URLs for each drop
+                            </p>
+                            
+                            <p style={{marginBottom: '12px'}}>
+                                <strong>5.</strong> Use <strong style={{color: 'var(--gold)'}}>Export</strong> to save your progress
+                            </p>
+                            
+                            <hr style={{border: 'none', borderTop: '1px solid var(--gold)', margin: '15px 0'}} />
+                            
+                            <p style={{marginBottom: '8px'}}><strong style={{color: 'var(--gold)'}}>Tips:</strong></p>
+                            
+                            <p style={{marginBottom: '8px'}}>
+                                🎮 <strong>Connect Twitch</strong> to create clips directly from the tracker
+                            </p>
+                            
+                            <p style={{marginBottom: '8px'}}>
+                                📂 <strong>Import</strong> backups from the desktop app or previous sessions
+                            </p>
+                            
+                            <p style={{marginBottom: '8px'}}>
+                                💾 Your data saves <strong>automatically</strong> in your browser
+                            </p>
+                            
+                            <p style={{marginBottom: '8px'}}>
+                                🔍 Use <strong>Search</strong> to quickly find items
+                            </p>
+                        </div>
+                        
+                        <div className="modal-buttons" style={{marginTop: '20px'}}>
+                            <button 
+                                className="modal-btn primary hunt-font" 
+                                onClick={() => { setShowHelp(false); localStorage.setItem('huntSeenHelp', 'true'); }}
+                            >
+                                LET'S HUNT!
+                            </button>
+                        </div>
+                        
+                        <p style={{color: 'var(--yellow)', fontSize: '11px', marginTop: '15px', textAlign: 'center'}}>
+                            Click the <strong>?</strong> button anytime to see this again
                         </p>
                     </div>
                 </div>
