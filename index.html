@@ -582,7 +582,32 @@ function App() {
     const setClip = (id, url) => setDrops(d => d.map(x => x.id === id ? {...x, clipUrl: url} : x));
     
     const connectTwitch = () => {
-        window.location.href = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(TWITCH_REDIRECT)}&response_type=token&scope=clips:edit`;
+        const privacyNotice = `PRIVACY NOTICE - Twitch Connection
+
+What happens when you connect:
+• You log in directly on Twitch's website (not ours)
+• We NEVER see or store your Twitch password
+
+What we store (in your browser only):
+• Your Twitch username
+• A temporary access token for creating clips
+
+What we DO NOT access:
+✗ Your password
+✗ Your email  
+✗ Your stream key
+✗ Your payment info
+
+All data stays in YOUR browser. Nothing is sent to any server except Twitch's API when creating clips.
+
+You can revoke access anytime at:
+twitch.tv/settings/connections
+
+Continue connecting to Twitch?`;
+        
+        if (confirm(privacyNotice)) {
+            window.location.href = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(TWITCH_REDIRECT)}&response_type=token&scope=clips:edit`;
+        }
     };
     
     const createClip = async () => {
