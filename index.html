@@ -646,7 +646,11 @@ Continue connecting to Twitch?`;
     
     const markSubmitted = (id) => setDrops(d => d.map(x => x.id === id ? {...x, submitted: true} : x));
     
-    const submit = async () => {
+    const [submitMode, setSubmitMode] = React.useState(false);
+    const [submitIndex, setSubmitIndex] = React.useState(0);
+    const [submitList, setSubmitList] = React.useState([]);
+    
+    const startSubmit = () => {
         if (drops.length === 0) return alert('No drops to submit! Record some drops first.');
         
         if (readyDrops.length === 0 && missingClipDrops.length > 0) {
@@ -654,52 +658,41 @@ Continue connecting to Twitch?`;
             return;
         }
         
-        if (readyDrops.length === 0) {
-            alert('All drops have already been submitted!');
-            return;
-        }
+        if (readyDrops.length === 0) return alert('All drops have already been submitted!');
         
-        let skipWarning = '';
         if (missingClipDrops.length > 0) {
-            if (!confirm(`${missingClipDrops.length} drops are missing clips and will be SKIPPED.\n${readyDrops.length} drops are ready to submit.\n\nContinue with the ${readyDrops.length} ready drops?`)) return;
+            if (!confirm(`${missingClipDrops.length} drops are missing clips and will be SKIPPED.\n${readyDrops.length} drops are ready to submit.\n\nContinue?`)) return;
         }
         
-        if (!confirm(`Ready to submit ${readyDrops.length} drops to bl4hunt.com\n\nFor each drop, the tracker will:\n  1. Copy the clip URL to your clipboard\n  2. You find the item on the item list page and click Claim\n  3. Paste clip URL and submit\n\nMake sure you are LOGGED IN to bl4hunt.com first!\n\nStart submitting?`)) return;
-        
-        // Open item list page
-        window.open('https://www.bl4hunt.com/item-list/', '_blank');
-        
-        let submitted = 0;
-        for (let i = 0; i < readyDrops.length; i++) {
-            const drop = readyDrops[i];
-            // Copy clip URL
-            try { await navigator.clipboard.writeText(drop.clipUrl); } catch(e) {}
-            
-            const action = confirm(
-                `DROP ${i+1} of ${readyDrops.length}:\n\n` +
-                `Item: ${drop.itemName}\n` +
-                `Boss: ${drop.bossName}\n` +
-                `Points: ${drop.points}\n` +
-                `Type: ${drop.type}\n\n` +
-                `Clip URL copied to clipboard!\n\n` +
-                `On the item list page:\n` +
-                `  1. Find "${drop.itemName}"\n` +
-                `  2. Click Claim\n` +
-                `  3. Paste clip URL (Ctrl+V)\n` +
-                `  4. Click Claim button\n\n` +
-                `Click OK after you've claimed this drop.\n` +
-                `Click Cancel to stop submitting.`
-            );
-            
-            if (action) {
-                markSubmitted(drop.id);
-                submitted++;
-            } else {
-                break;
-            }
+        setSubmitList([...readyDrops]);
+        setSubmitIndex(0);
+        setSubmitMode(true);
+        // Copy first clip URL
+        try { navigator.clipboard.writeText(readyDrops[0].clipUrl); } catch(e) {}
+    };
+    
+    const submitNext = (claimed) => {
+        if (claimed) {
+            markSubmitted(submitList[submitIndex].id);
         }
-        
-        alert(`Submission complete!\n\nSubmitted: ${submitted} of ${readyDrops.length} drops\nRemaining: ${readyDrops.length - submitted} drops`);
+        const next = submitIndex + 1;
+        if (next < submitList.length) {
+            setSubmitIndex(next);
+            // Copy next clip URL
+            try { navigator.clipboard.writeText(submitList[next].clipUrl); } catch(e) {}
+        } else {
+            const total = submitList.length;
+            const done = submitList.filter((d, i) => i <= submitIndex && claimed || i < submitIndex).length;
+            setSubmitMode(false);
+            setSubmitList([]);
+            setSubmitIndex(0);
+        }
+    };
+    
+    const cancelSubmit = () => {
+        setSubmitMode(false);
+        setSubmitList([]);
+        setSubmitIndex(0);
     };
     
     const exportJSON = () => {
@@ -1023,21 +1016,59 @@ Continue connecting to Twitch?`;
                             </div>
                         </div>
                         
-                        <p style={{marginBottom: '8px'}}><strong style={{color: 'var(--gold)'}}>How submit works:</strong></p>
-                        <p>1. Opens <strong>bl4hunt.com/item-list/</strong> in a new tab</p>
-                        <p>2. For each drop, copies the clip URL to your clipboard</p>
-                        <p>3. Find the item, click <strong>Claim</strong>, paste the clip URL</p>
-                        <p>4. Click OK in the dialog to mark as submitted</p>
-                        <p style={{marginTop: '12px', color: 'var(--yellow)'}}>Make sure you are <strong>logged in</strong> to bl4hunt.com first!</p>
-                        
-                        <p style={{marginTop: '15px', color: 'var(--yellow)', fontSize: '11px'}}>
-                            ✓ = Submitted &nbsp;&nbsp; ● = Has clip &nbsp;&nbsp; No icon = Missing clip
-                        </p>
+                        {!submitMode ? (
+                            <div>
+                                <p style={{marginBottom: '8px'}}><strong style={{color: 'var(--gold)'}}>How submit works:</strong></p>
+                                <p>1. Click Start - opens step-by-step guide</p>
+                                <p>2. For each drop, open the item list page and click Claim</p>
+                                <p>3. Paste the clip URL (auto-copied) and submit</p>
+                                <p>4. Mark as done, move to next drop</p>
+                                <p style={{marginTop: '12px', color: 'var(--yellow)'}}>Make sure you are <strong>logged in</strong> to bl4hunt.com first!</p>
+                                
+                                <p style={{marginTop: '15px', color: 'var(--yellow)', fontSize: '11px'}}>
+                                    ✓ = Submitted &nbsp;&nbsp; ● = Has clip &nbsp;&nbsp; No icon = Missing clip
+                                </p>
+                            </div>
+                        ) : (
+                            <div style={{background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '15px', border: '2px solid var(--gold)'}}>
+                                <div style={{color: 'var(--gold)', fontSize: '14px', fontFamily: 'Bebas Neue', marginBottom: '10px'}}>
+                                    DROP {submitIndex + 1} OF {submitList.length}
+                                </div>
+                                
+                                <div style={{marginBottom: '12px'}}>
+                                    <div style={{color: 'var(--gold)', fontSize: '18px', fontWeight: 'bold'}}>{submitList[submitIndex]?.itemName}</div>
+                                    <div style={{color: 'var(--yellow)', fontSize: '12px'}}>Boss: {submitList[submitIndex]?.bossName}</div>
+                                    <div style={{color: 'var(--yellow)', fontSize: '12px'}}>Points: {submitList[submitIndex]?.points} | Type: {submitList[submitIndex]?.type}</div>
+                                </div>
+                                
+                                <div style={{background: 'rgba(76,175,80,0.2)', border: '1px solid #4caf50', borderRadius: '6px', padding: '8px', marginBottom: '12px', fontSize: '12px', color: '#4caf50'}}>
+                                    Clip URL copied to clipboard!
+                                </div>
+                                
+                                <div style={{marginBottom: '12px', fontSize: '12px'}}>
+                                    <p>1. <a href="https://www.bl4hunt.com/item-list/" target="_blank" rel="noopener noreferrer" style={{color: 'var(--gold)', textDecoration: 'underline'}}>Open Item List Page</a></p>
+                                    <p>2. Find "<strong>{submitList[submitIndex]?.itemName}</strong>" and click Claim</p>
+                                    <p>3. Paste clip URL (Ctrl+V) and submit</p>
+                                </div>
+                                
+                                <div style={{display: 'flex', gap: '8px'}}>
+                                    <button onClick={() => submitNext(true)} style={{flex: 1, padding: '10px', background: '#4caf50', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontFamily: 'Bebas Neue', fontSize: '14px', letterSpacing: '1px'}}>
+                                        CLAIMED - NEXT
+                                    </button>
+                                    <button onClick={() => submitNext(false)} style={{padding: '10px 15px', background: '#ff9800', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px'}}>
+                                        Skip
+                                    </button>
+                                    <button onClick={cancelSubmit} style={{padding: '10px 15px', background: '#f44336', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px'}}>
+                                        Stop
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                     
-                    {readyDrops.length > 0 && (
+                    {!submitMode && readyDrops.length > 0 && (
                         <div style={{padding: '0 15px 15px'}}>
-                            <button className="action-btn" onClick={submit} style={{width: '100%', padding: '14px', fontSize: '16px', fontFamily: 'Bebas Neue', letterSpacing: '2px', background: '#4caf50', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer'}}>
+                            <button onClick={startSubmit} style={{width: '100%', padding: '14px', fontSize: '16px', fontFamily: 'Bebas Neue', letterSpacing: '2px', background: '#4caf50', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer'}}>
                                 SUBMIT {readyDrops.length} DROPS TO BL4HUNT.COM
                             </button>
                         </div>
