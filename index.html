@@ -543,7 +543,7 @@ function App() {
     const score = drops.reduce((s, d) => s + d.points, 0);
     const collected = drops.map(d => d.itemName);
     const uniqueCollected = new Set(collected);
-    const noClips = drops.filter(d => !d.clipUrl);
+    const noClips = drops.filter(d => !d.clipUrl && !d.submitted);
     const types = [...new Set(ITEMS.map(i => i.type).filter(Boolean))].sort();
     const modes = [...new Set(ITEMS.map(i => i.gameMode).filter(Boolean))].sort();
     const bosses = [...new Set(ITEMS.map(i => i.bossName).filter(Boolean))].sort();
@@ -567,7 +567,7 @@ function App() {
     };
     
     const addDrop = (item, source) => {
-        const newDrop = { id: Date.now(), itemName: item.itemName, bossName: source, type: item.type, points: item.points, timestamp: new Date().toISOString(), sessionTime: seconds, clipUrl: '' };
+        const newDrop = { id: Date.now(), itemName: item.itemName, bossName: source, type: item.type, points: item.points, timestamp: new Date().toISOString(), sessionTime: seconds, clipUrl: '', submitted: false };
         setDrops(d => [newDrop, ...d]);
         setSelectedDrop(newDrop.id);
         setModal(null);
@@ -585,18 +585,18 @@ function App() {
         const privacyNotice = `PRIVACY NOTICE - Twitch Connection
 
 What happens when you connect:
-• You log in directly on Twitch's website (not ours)
-• We NEVER see or store your Twitch password
+- You log in directly on Twitch's website (not ours)
+- We NEVER see or store your Twitch password
 
 What we store (in your browser only):
-• Your Twitch username
-• A temporary access token for creating clips
+- Your Twitch username
+- A temporary access token for creating clips
 
 What we DO NOT access:
-✗ Your password
-✗ Your email  
-✗ Your stream key
-✗ Your payment info
+[X] Your password
+[X] Your email  
+[X] Your stream key
+[X] Your payment info
 
 All data stays in YOUR browser. Nothing is sent to any server except Twitch's API when creating clips.
 
@@ -611,8 +611,10 @@ Continue connecting to Twitch?`;
     };
     
     const createClip = async () => {
-        if (!selectedDrop) return alert('Select a drop first');
         if (!twitchToken) return alert('Connect Twitch first');
+        // Auto-select most recent drop if none selected
+        const targetDrop = selectedDrop || (drops.length > 0 ? drops[0].id : null);
+        if (!targetDrop) return alert('Record a drop first');
         try {
             const userRes = await fetch(`https://api.twitch.tv/helix/users?login=${twitchUser}`, {
                 headers: { 'Authorization': `Bearer ${twitchToken}`, 'Client-Id': TWITCH_CLIENT_ID }
@@ -624,18 +626,80 @@ Continue connecting to Twitch?`;
             const clipData = await clipRes.json();
             if (clipData.data?.[0]) {
                 const url = `https://clips.twitch.tv/${clipData.data[0].id}`;
-                setClip(selectedDrop, url);
-                alert('Clip created!\n' + url);
+                const editUrl = clipData.data[0].edit_url;
+                // Link clip to the target drop
+                setClip(targetDrop, url);
+                setSelectedDrop(targetDrop);
+                const dropName = drops.find(d => d.id === targetDrop)?.itemName || 'Drop';
+                // Copy title to clipboard for easy renaming
+                try { navigator.clipboard.writeText(`Hunt Drop: ${dropName}`); } catch(e) {}
+                // Open edit URL if available
+                if (editUrl) window.open(editUrl, '_blank');
+                alert(`Clip created and linked to: ${dropName}\n${url}\n\nClip editor opened - title copied to clipboard!`);
             } else alert('Clip failed - are you live?');
         } catch(e) { alert('Error: ' + e.message); }
     };
     
-    const submit = () => {
-        if (noClips.length) {
-            alert(`Cannot submit!\n\n${noClips.length} drops missing clips:\n${noClips.slice(0,5).map(d => `• ${d.itemName} @ ${formatTime(d.sessionTime)}`).join('\n')}${noClips.length > 5 ? '\n...' : ''}\n\nAdd clips first.`);
+    const submittedDrops = drops.filter(d => d.submitted);
+    const readyDrops = drops.filter(d => !d.submitted && d.clipUrl);
+    const missingClipDrops = drops.filter(d => !d.submitted && !d.clipUrl);
+    
+    const markSubmitted = (id) => setDrops(d => d.map(x => x.id === id ? {...x, submitted: true} : x));
+    
+    const submit = async () => {
+        if (drops.length === 0) return alert('No drops to submit! Record some drops first.');
+        
+        if (readyDrops.length === 0 && missingClipDrops.length > 0) {
+            alert(`All remaining drops are missing clips!\n\n${missingClipDrops.slice(0,5).map(d => `• ${d.itemName} @ ${formatTime(d.sessionTime)}`).join('\n')}\n\nAdd clips first.`);
             return;
         }
-        alert(`Submit coming soon!\n\nScore: ${score}\nDrops: ${drops.length}`);
+        
+        if (readyDrops.length === 0) {
+            alert('All drops have already been submitted!');
+            return;
+        }
+        
+        let skipWarning = '';
+        if (missingClipDrops.length > 0) {
+            if (!confirm(`${missingClipDrops.length} drops are missing clips and will be SKIPPED.\n${readyDrops.length} drops are ready to submit.\n\nContinue with the ${readyDrops.length} ready drops?`)) return;
+        }
+        
+        if (!confirm(`Ready to submit ${readyDrops.length} drops to bl4hunt.com\n\nFor each drop, the tracker will:\n  1. Copy the clip URL to your clipboard\n  2. You find the item on the item list page and click Claim\n  3. Paste clip URL and submit\n\nMake sure you are LOGGED IN to bl4hunt.com first!\n\nStart submitting?`)) return;
+        
+        // Open item list page
+        window.open('https://www.bl4hunt.com/item-list/', '_blank');
+        
+        let submitted = 0;
+        for (let i = 0; i < readyDrops.length; i++) {
+            const drop = readyDrops[i];
+            // Copy clip URL
+            try { await navigator.clipboard.writeText(drop.clipUrl); } catch(e) {}
+            
+            const action = confirm(
+                `DROP ${i+1} of ${readyDrops.length}:\n\n` +
+                `Item: ${drop.itemName}\n` +
+                `Boss: ${drop.bossName}\n` +
+                `Points: ${drop.points}\n` +
+                `Type: ${drop.type}\n\n` +
+                `Clip URL copied to clipboard!\n\n` +
+                `On the item list page:\n` +
+                `  1. Find "${drop.itemName}"\n` +
+                `  2. Click Claim\n` +
+                `  3. Paste clip URL (Ctrl+V)\n` +
+                `  4. Click Claim button\n\n` +
+                `Click OK after you've claimed this drop.\n` +
+                `Click Cancel to stop submitting.`
+            );
+            
+            if (action) {
+                markSubmitted(drop.id);
+                submitted++;
+            } else {
+                break;
+            }
+        }
+        
+        alert(`Submission complete!\n\nSubmitted: ${submitted} of ${readyDrops.length} drops\nRemaining: ${readyDrops.length - submitted} drops`);
     };
     
     const exportJSON = () => {
@@ -644,7 +708,7 @@ Continue connecting to Twitch?`;
     };
     
     const exportCSV = () => {
-        const csv = [['Item','Boss','Type','Points','Time','Clip','Timestamp'], ...drops.map(d => [d.itemName,d.bossName,d.type,d.points,formatTime(d.sessionTime),d.clipUrl,d.timestamp])].map(r => r.join(',')).join('\n');
+        const csv = [['Item','Boss','Type','Points','Time','Clip','Submitted','Timestamp'], ...drops.map(d => [d.itemName,d.bossName,d.type,d.points,formatTime(d.sessionTime),d.clipUrl,d.submitted?'Yes':'No',d.timestamp])].map(r => r.join(',')).join('\n');
         const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = `hunt_${player || 'session'}_${Date.now()}.csv`; a.click();
     };
     
@@ -700,7 +764,8 @@ Continue connecting to Twitch?`;
             points: d.points || d.Points || 1,
             timestamp: d.timestamp || d.Timestamp || new Date().toISOString(),
             sessionTime: d.sessionTime || d.SessionTime || d.session_time || 0,
-            clipUrl: d.clipUrl || d.ClipUrl || d.clip_url || ''
+            clipUrl: d.clipUrl || d.ClipUrl || d.clip_url || '',
+            submitted: d.submitted || d.Submitted || false
         }));
         
         const clipsImported = importedDrops.filter(d => d.clipUrl).length;
@@ -808,6 +873,9 @@ Continue connecting to Twitch?`;
                 <button className={`tab ${activeTab === 'drops' ? 'active' : ''}`} onClick={() => setActiveTab('drops')}>
                     Clips ({drops.length})
                 </button>
+                <button className={`tab ${activeTab === 'submit' ? 'active' : ''}`} onClick={() => setActiveTab('submit')}>
+                    Submit
+                </button>
             </div>
             
             <div className="main">
@@ -893,7 +961,7 @@ Continue connecting to Twitch?`;
                                     onClick={() => setSelectedDrop(d.id)}
                                     style={{background: selectedDrop === d.id ? 'rgba(255,198,0,0.2)' : 'transparent'}}
                                 >
-                                    <span className="col-session">{d.clipUrl ? '✓' : ''} {formatTime(d.sessionTime).slice(0,5)}</span>
+                                    <span className="col-session">{d.submitted ? '✓' : d.clipUrl ? '●' : ''} {formatTime(d.sessionTime).slice(0,5)}</span>
                                     <span className="col-item">{d.itemName}</span>
                                     <span className="col-boss">{d.bossName}</span>
                                     <span className="col-pts">{d.points}</span>
@@ -913,8 +981,8 @@ Continue connecting to Twitch?`;
                                     onChange={e => setClip(currentDrop.id, e.target.value)} 
                                 />
                             </div>
-                            <div style={{fontSize: '11px', color: currentDrop.clipUrl ? '#4caf50' : '#ff9800'}}>
-                                {currentDrop.clipUrl ? '✓ Clip linked' : '⚠ No clip'}
+                            <div style={{fontSize: '11px', color: currentDrop.submitted ? 'var(--gold)' : currentDrop.clipUrl ? '#4caf50' : '#ff9800'}}>
+                                {currentDrop.submitted ? '✓ Submitted' : currentDrop.clipUrl ? '● Clip linked' : '⚠ No clip'}
                             </div>
                         </div>
                     )}
@@ -933,6 +1001,54 @@ Continue connecting to Twitch?`;
                         <button className="export-btn" onClick={clearAll}>Clear</button>
                     </div>
                     <p className="import-info">Import backups from desktop app or previous web sessions</p>
+                </div>
+                
+                {/* Submit Panel */}
+                <div className={`panel drops-panel ${activeTab !== 'submit' ? 'hidden' : ''}`}>
+                    <h2 className="panel-title hunt-font">SUBMIT TO BL4HUNT.COM</h2>
+                    
+                    <div style={{padding: '15px', color: 'var(--white)', fontSize: '13px', lineHeight: '1.8'}}>
+                        <div style={{display: 'flex', justifyContent: 'space-around', marginBottom: '20px', textAlign: 'center'}}>
+                            <div>
+                                <div style={{color: 'var(--gold)', fontSize: '24px', fontFamily: 'Bebas Neue'}}>{submittedDrops.length}</div>
+                                <div style={{color: 'var(--yellow)', fontSize: '11px'}}>SUBMITTED</div>
+                            </div>
+                            <div>
+                                <div style={{color: '#4caf50', fontSize: '24px', fontFamily: 'Bebas Neue'}}>{readyDrops.length}</div>
+                                <div style={{color: 'var(--yellow)', fontSize: '11px'}}>READY</div>
+                            </div>
+                            <div>
+                                <div style={{color: '#ff9800', fontSize: '24px', fontFamily: 'Bebas Neue'}}>{missingClipDrops.length}</div>
+                                <div style={{color: 'var(--yellow)', fontSize: '11px'}}>MISSING CLIPS</div>
+                            </div>
+                        </div>
+                        
+                        <p style={{marginBottom: '8px'}}><strong style={{color: 'var(--gold)'}}>How submit works:</strong></p>
+                        <p>1. Opens <strong>bl4hunt.com/item-list/</strong> in a new tab</p>
+                        <p>2. For each drop, copies the clip URL to your clipboard</p>
+                        <p>3. Find the item, click <strong>Claim</strong>, paste the clip URL</p>
+                        <p>4. Click OK in the dialog to mark as submitted</p>
+                        <p style={{marginTop: '12px', color: 'var(--yellow)'}}>Make sure you are <strong>logged in</strong> to bl4hunt.com first!</p>
+                        
+                        <p style={{marginTop: '15px', color: 'var(--yellow)', fontSize: '11px'}}>
+                            ✓ = Submitted &nbsp;&nbsp; ● = Has clip &nbsp;&nbsp; No icon = Missing clip
+                        </p>
+                    </div>
+                    
+                    {readyDrops.length > 0 && (
+                        <div style={{padding: '0 15px 15px'}}>
+                            <button className="action-btn" onClick={submit} style={{width: '100%', padding: '14px', fontSize: '16px', fontFamily: 'Bebas Neue', letterSpacing: '2px', background: '#4caf50', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer'}}>
+                                SUBMIT {readyDrops.length} DROPS TO BL4HUNT.COM
+                            </button>
+                        </div>
+                    )}
+                    
+                    <div style={{padding: '0 15px'}}>
+                        <div className="export-section">
+                            <button className="export-btn" onClick={exportJSON}>Export JSON</button>
+                            <button className="export-btn" onClick={exportCSV}>Export CSV</button>
+                        </div>
+                    </div>
                 </div>
             </div>
             
