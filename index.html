@@ -506,7 +506,6 @@ function App() {
     const [selectedSource, setSelectedSource] = React.useState('');
     const [activeTab, setActiveTab] = React.useState('items');
     const [selectedDrop, setSelectedDrop] = React.useState(null);
-    const [checkedItems, setCheckedItems] = React.useState(new Set());
     const [importModal, setImportModal] = React.useState(null);
     const [showHelp, setShowHelp] = React.useState(() => !localStorage.getItem('huntSeenHelp2'));
     const fileInputRef = React.useRef(null);
@@ -567,25 +566,12 @@ function App() {
         }
     };
     
-    const toggleCheck = (itemName) => {
-        setCheckedItems(prev => {
-            const next = new Set(prev);
-            if (next.has(itemName)) next.delete(itemName); else next.add(itemName);
-            return next;
-        });
-    };
-    
-    const recordChecked = () => {
-        if (checkedItems.size === 0) return;
-        const items = ITEMS.filter(i => checkedItems.has(i.itemName));
-        // Deduplicate by itemName
-        const seen = new Set();
-        const unique = items.filter(i => { if (seen.has(i.itemName)) return false; seen.add(i.itemName); return true; });
-        unique.forEach(item => addDrop(item, item.bossName));
-        setCheckedItems(new Set());
-    };
-    
     const addDrop = (item, source) => {
+        // Check for duplicate
+        if (drops.some(d => d.itemName === item.itemName)) {
+            alert(`"${item.itemName}" has already been recorded!\n\nEach item can only be claimed once.`);
+            return;
+        }
         const newDrop = { id: Date.now(), itemName: item.itemName, bossName: source, type: item.type, points: item.points, timestamp: new Date().toISOString(), sessionTime: seconds, clipUrl: '', submitted: false };
         setDrops(d => [newDrop, ...d]);
         setSelectedDrop(newDrop.id);
@@ -631,9 +617,8 @@ Continue connecting to Twitch?`;
     
     const createClip = async () => {
         if (!twitchToken) return alert('Connect Twitch first');
-        // Auto-select most recent drop if none selected
-        const targetDrop = selectedDrop || (drops.length > 0 ? drops[0].id : null);
-        if (!targetDrop) return alert('Record a drop first');
+        const unclipped = drops.filter(d => !d.clipUrl);
+        if (unclipped.length === 0) return alert('All drops already have clips');
         try {
             const userRes = await fetch(`https://api.twitch.tv/helix/users?login=${twitchUser}`, {
                 headers: { 'Authorization': `Bearer ${twitchToken}`, 'Client-Id': TWITCH_CLIENT_ID }
@@ -646,15 +631,16 @@ Continue connecting to Twitch?`;
             if (clipData.data?.[0]) {
                 const url = `https://clips.twitch.tv/${clipData.data[0].id}`;
                 const editUrl = clipData.data[0].edit_url;
-                // Link clip to the target drop
-                setClip(targetDrop, url);
-                setSelectedDrop(targetDrop);
-                const dropName = drops.find(d => d.id === targetDrop)?.itemName || 'Drop';
+                // Link clip to ALL drops without a clip
+                setDrops(d => d.map(drop => 
+                    !drop.clipUrl ? {...drop, clipUrl: url} : drop
+                ));
+                const names = unclipped.map(d => d.itemName).join(', ');
                 // Copy title to clipboard for easy renaming
-                try { navigator.clipboard.writeText(`Hunt Drop: ${dropName}`); } catch(e) {}
+                try { navigator.clipboard.writeText(`Hunt Drop: ${names}`); } catch(e) {}
                 // Open edit URL if available
                 if (editUrl) window.open(editUrl, '_blank');
-                alert(`Clip created and linked to: ${dropName}\n${url}\n\nClip editor opened - title copied to clipboard!`);
+                alert(`Clip created and linked to ${unclipped.length} drop(s):\n${names}\n\n${url}\n\nClip editor opened - title copied to clipboard!`);
             } else alert('Clip failed - are you live?');
         } catch(e) { alert('Error: ' + e.message); }
     };
@@ -931,37 +917,10 @@ Continue connecting to Twitch?`;
                             {bosses.map(b => <option key={b} value={b}>{b}</option>)}
                         </select>
                     </div>
-                    {checkedItems.size > 0 && (
-                        <div style={{padding: '6px 10px', display: 'flex', alignItems: 'center', gap: '10px'}}>
-                            <button 
-                                onClick={recordChecked}
-                                style={{
-                                    padding: '8px 16px',
-                                    background: '#4caf50',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '5px',
-                                    cursor: 'pointer',
-                                    fontFamily: 'Bebas Neue, sans-serif',
-                                    fontSize: '14px',
-                                    letterSpacing: '1px'
-                                }}
-                            >
-                                RECORD {checkedItems.size} SELECTED
-                            </button>
-                            <button 
-                                onClick={() => setCheckedItems(new Set())}
-                                style={{padding: '8px 12px', background: 'var(--maroon)', color: 'var(--yellow)', border: '1px solid var(--gold)', borderRadius: '5px', cursor: 'pointer', fontSize: '12px'}}
-                            >
-                                Clear
-                            </button>
-                        </div>
-                    )}
                     <div className="items-scroll">
                         <table>
                             <thead>
                                 <tr>
-                                    <th style={{width: '30px'}}></th>
                                     <th>Item</th>
                                     <th>Boss</th>
                                     <th className="hide-mobile">Mission/Location</th>
@@ -973,19 +932,18 @@ Continue connecting to Twitch?`;
                             <tbody>
                                 {filtered.map((item, i) => {
                                     const got = collected.includes(item.itemName);
-                                    const checked = checkedItems.has(item.itemName);
                                     return (
                                         <tr key={i} className={got ? 'collected' : ''}>
-                                            <td><input type="checkbox" checked={checked} onChange={() => toggleCheck(item.itemName)} style={{cursor: 'pointer', width: '16px', height: '16px'}} /></td>
                                             <td className="item-name">{item.itemName}</td>
                                             <td>{item.bossName}</td>
                                             <td className="hide-mobile">{item.mission}</td>
                                             <td className="hide-mobile">{item.type}</td>
                                             <td>{item.points}</td>
                                             <td>
-                                                <button className="record-btn" onClick={() => recordDrop(item)}>
-                                                    {got ? '+' : 'Record'}
-                                                </button>
+                                                {got 
+                                                    ? <span style={{color: 'var(--gold)', fontSize: '12px', fontWeight: 'bold'}}>✓</span>
+                                                    : <button className="record-btn" onClick={() => recordDrop(item)}>Record</button>
+                                                }
                                             </td>
                                         </tr>
                                     );
