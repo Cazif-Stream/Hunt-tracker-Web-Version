@@ -483,8 +483,8 @@ const TWITCH_CLIENT_ID = 'n4qmry6sq5nd308mlh1e5dwakdaldo';
 // Use localhost for testing, GitHub Pages for production
 const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const TWITCH_REDIRECT = isLocal 
-    ? 'http://localhost:5500/callback.html'  // VS Code Live Server default
-    : 'https://cazif-stream.github.io/Hunt-tracker-Web-Version/callback.html';
+    ? 'http://localhost:5500/callback.html'
+    : `${window.location.origin}${window.location.pathname.replace(/\/[^\/]*$/, '/')}callback.html`;
 
 const formatTime = s => {
     const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
@@ -507,7 +507,7 @@ function App() {
     const [activeTab, setActiveTab] = React.useState('items');
     const [selectedDrop, setSelectedDrop] = React.useState(null);
     const [importModal, setImportModal] = React.useState(null);
-    const [showHelp, setShowHelp] = React.useState(() => !localStorage.getItem('huntSeenHelp'));
+    const [showHelp, setShowHelp] = React.useState(() => !localStorage.getItem('huntSeenHelp2'));
     const fileInputRef = React.useRef(null);
 
     React.useEffect(() => { localStorage.setItem('huntPlayer', player); }, [player]);
@@ -804,29 +804,49 @@ Continue connecting to Twitch?`;
                         <div>
                             <h1 className="title hunt-font">THE HUNT - BL4 CHARITY 2026</h1>
                             <a 
-                                href="https://thehuntbl4.com" 
+                                href="https://www.bl4hunt.com" 
                                 target="_blank" 
                                 rel="noopener noreferrer"
                                 style={{color: 'var(--yellow)', fontSize: '12px', textDecoration: 'none'}}
                             >
-                                🌐 thehuntbl4.com
+                                🌐 bl4hunt.com
                             </a>
                         </div>
                     </div>
-                    <button 
-                        onClick={() => setShowHelp(true)}
-                        style={{
-                            background: 'var(--gold)',
-                            color: 'var(--dark)',
-                            border: 'none',
-                            borderRadius: '50%',
-                            width: '30px',
-                            height: '30px',
-                            fontSize: '16px',
-                            cursor: 'pointer',
-                            fontWeight: 'bold'
-                        }}
-                    >?</button>
+                    <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+                        <a
+                            href="https://tracker.borderlandshunt.com"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                                background: 'linear-gradient(135deg, #4caf50, #388e3c)',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '5px',
+                                padding: '5px 10px',
+                                fontSize: '11px',
+                                cursor: 'pointer',
+                                textDecoration: 'none',
+                                fontFamily: 'Bebas Neue, sans-serif',
+                                letterSpacing: '1px',
+                                whiteSpace: 'nowrap'
+                            }}
+                        >DESKTOP APP</a>
+                        <button 
+                            onClick={() => setShowHelp(true)}
+                            style={{
+                                background: 'var(--gold)',
+                                color: 'var(--dark)',
+                                border: 'none',
+                                borderRadius: '50%',
+                                width: '30px',
+                                height: '30px',
+                                fontSize: '16px',
+                                cursor: 'pointer',
+                                fontWeight: 'bold'
+                            }}
+                        >?</button>
+                    </div>
                     <div className="header-stats">
                         <div className="stat-box">
                             <div className="stat-label">Score</div>
@@ -1046,9 +1066,9 @@ Continue connecting to Twitch?`;
                                 </div>
                                 
                                 <div style={{marginBottom: '12px', fontSize: '12px'}}>
-                                    <p>1. <a href="https://www.bl4hunt.com/item-list/" target="_blank" rel="noopener noreferrer" style={{color: 'var(--gold)', textDecoration: 'underline'}}>Open Item List Page</a></p>
-                                    <p>2. Find "<strong>{submitList[submitIndex]?.itemName}</strong>" and click Claim</p>
-                                    <p>3. Paste clip URL (Ctrl+V) and submit</p>
+                                    <a href="https://www.bl4hunt.com/item-list/" target="_blank" rel="noopener noreferrer" style={{display: 'block', padding: '10px', background: 'var(--maroon)', border: '2px solid var(--gold)', borderRadius: '6px', color: 'var(--gold)', textDecoration: 'none', textAlign: 'center', fontFamily: 'Bebas Neue', fontSize: '16px', letterSpacing: '1px', marginBottom: '10px', cursor: 'pointer'}}>OPEN ITEM LIST PAGE</a>
+                                    <p>1. Find "<strong>{submitList[submitIndex]?.itemName}</strong>" and click Claim</p>
+                                    <p>2. Paste clip URL (Ctrl+V) and submit</p>
                                 </div>
                                 
                                 <div style={{display: 'flex', gap: '8px'}}>
@@ -1136,60 +1156,74 @@ Continue connecting to Twitch?`;
             
             {/* Help/Instructions Modal */}
             {showHelp && (
-                <div className="modal-overlay" onClick={() => { setShowHelp(false); localStorage.setItem('huntSeenHelp', 'true'); }}>
-                    <div className="modal" onClick={e => e.stopPropagation()} style={{maxWidth: '500px'}}>
-                        <h3 className="modal-title hunt-font">🎯 WELCOME TO THE HUNT TRACKER</h3>
+                <div className="modal-overlay" onClick={() => { setShowHelp(false); localStorage.setItem('huntSeenHelp2', 'true'); }}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{maxWidth: '520px'}}>
+                        <h3 className="modal-title hunt-font">THE HUNT TRACKER - WEB VERSION</h3>
                         
                         <div style={{color: 'var(--white)', fontSize: '13px', lineHeight: '1.6'}}>
-                            <p style={{marginBottom: '12px'}}><strong style={{color: 'var(--gold)'}}>How to use:</strong></p>
                             
-                            <p style={{marginBottom: '8px'}}>
-                                <strong>1.</strong> Enter your <strong style={{color: 'var(--gold)'}}>Player Name</strong> at the top
-                            </p>
+                            <div style={{background: 'rgba(255,152,0,0.15)', border: '1px solid #ff9800', borderRadius: '8px', padding: '12px', marginBottom: '15px'}}>
+                                <p style={{color: '#ff9800', fontWeight: 'bold', marginBottom: '6px'}}>⚠ IMPORTANT: Export After Every Session!</p>
+                                <p>Your data is stored in your <strong>browser only</strong>. Clearing browser data, using incognito mode, or switching browsers will <strong>erase all progress</strong>.</p>
+                                <p style={{marginTop: '6px'}}>Always <strong style={{color: 'var(--gold)'}}>Export JSON</strong> when you finish a session to keep a backup!</p>
+                            </div>
                             
-                            <p style={{marginBottom: '8px'}}>
-                                <strong>2.</strong> Click <strong style={{color: 'var(--gold)'}}>START</strong> when you begin your run
-                            </p>
+                            <p style={{marginBottom: '10px'}}><strong style={{color: 'var(--gold)'}}>Web Version Limitations:</strong></p>
                             
-                            <p style={{marginBottom: '8px'}}>
-                                <strong>3.</strong> When you get a drop, find it in the list and click <strong style={{color: 'var(--gold)'}}>Record</strong>
-                            </p>
-                            
-                            <p style={{marginBottom: '8px'}}>
-                                <strong>4.</strong> Go to <strong style={{color: 'var(--gold)'}}>Clips</strong> tab to add clip URLs for each drop
-                            </p>
-                            
-                            <p style={{marginBottom: '12px'}}>
-                                <strong>5.</strong> Use <strong style={{color: 'var(--gold)'}}>Export</strong> to save your progress
-                            </p>
+                            <p style={{marginBottom: '6px'}}>❌ No hotkey support (F5/F6/F7)</p>
+                            <p style={{marginBottom: '6px'}}>❌ No stream overlay sync</p>
+                            <p style={{marginBottom: '6px'}}>❌ No auto-clip on drop record</p>
+                            <p style={{marginBottom: '6px'}}>❌ Data only saved in browser (not to file)</p>
+                            <p style={{marginBottom: '6px'}}>❌ No background operation while gaming</p>
                             
                             <hr style={{border: 'none', borderTop: '1px solid var(--gold)', margin: '15px 0'}} />
                             
-                            <p style={{marginBottom: '8px'}}><strong style={{color: 'var(--gold)'}}>Tips:</strong></p>
+                            <p style={{marginBottom: '10px'}}><strong style={{color: 'var(--gold)'}}>Desktop Version Features:</strong></p>
                             
-                            <p style={{marginBottom: '8px'}}>
-                                🎮 <strong>Connect Twitch</strong> to create clips directly from the tracker
-                            </p>
+                            <p style={{marginBottom: '6px'}}>✅ Hotkeys - record drops & create clips while gaming</p>
+                            <p style={{marginBottom: '6px'}}>✅ OBS stream overlay with live score & timer</p>
+                            <p style={{marginBottom: '6px'}}>✅ Auto-clip on drop with Twitch integration</p>
+                            <p style={{marginBottom: '6px'}}>✅ Auto-save to file - no data loss</p>
+                            <p style={{marginBottom: '6px'}}>✅ Submit drops directly to bl4hunt.com</p>
                             
-                            <p style={{marginBottom: '8px'}}>
-                                📂 <strong>Import</strong> backups from the desktop app or previous sessions
-                            </p>
+                            <div style={{marginTop: '15px'}}>
+                                <a 
+                                    href="https://tracker.borderlandshunt.com"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{
+                                        display: 'block',
+                                        padding: '12px',
+                                        background: 'linear-gradient(135deg, #4caf50, #388e3c)',
+                                        color: 'white',
+                                        textDecoration: 'none',
+                                        borderRadius: '8px',
+                                        textAlign: 'center',
+                                        fontFamily: 'Bebas Neue, sans-serif',
+                                        fontSize: '18px',
+                                        letterSpacing: '2px'
+                                    }}
+                                >
+                                    DOWNLOAD DESKTOP VERSION
+                                </a>
+                            </div>
                             
-                            <p style={{marginBottom: '8px'}}>
-                                💾 Your data saves <strong>automatically</strong> in your browser
-                            </p>
+                            <hr style={{border: 'none', borderTop: '1px solid var(--gold)', margin: '15px 0'}} />
                             
-                            <p style={{marginBottom: '8px'}}>
-                                🔍 Use <strong>Search</strong> to quickly find items
-                            </p>
+                            <p style={{marginBottom: '8px'}}><strong style={{color: 'var(--gold)'}}>Quick Start (Web):</strong></p>
+                            <p style={{marginBottom: '6px'}}><strong>1.</strong> Enter your <strong style={{color: 'var(--gold)'}}>Player Name</strong></p>
+                            <p style={{marginBottom: '6px'}}><strong>2.</strong> Click <strong style={{color: 'var(--gold)'}}>START</strong> to begin your session</p>
+                            <p style={{marginBottom: '6px'}}><strong>3.</strong> Click <strong style={{color: 'var(--gold)'}}>Record</strong> when you get a drop</p>
+                            <p style={{marginBottom: '6px'}}><strong>4.</strong> Add clips in the <strong style={{color: 'var(--gold)'}}>Clips</strong> tab</p>
+                            <p style={{marginBottom: '6px'}}><strong>5.</strong> <strong style={{color: '#ff9800'}}>Export JSON</strong> when done!</p>
                         </div>
                         
                         <div className="modal-buttons" style={{marginTop: '20px'}}>
                             <button 
                                 className="modal-btn primary hunt-font" 
-                                onClick={() => { setShowHelp(false); localStorage.setItem('huntSeenHelp', 'true'); }}
+                                onClick={() => { setShowHelp(false); localStorage.setItem('huntSeenHelp2', 'true'); }}
                             >
-                                LET'S HUNT!
+                                GOT IT - LET'S HUNT!
                             </button>
                         </div>
                         
