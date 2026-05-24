@@ -584,7 +584,7 @@ function App() {
         if (selectedDrop === id) setSelectedDrop(null);
     };
     
-    const setClip = (id, url) => setDrops(d => d.map(x => x.id === id ? {...x, clipUrl: url} : x));
+    const setClip = (id, url) => setDrops(d => d.map(x => x.id === id ? {...x, clipUrl: url, submitted: false} : x));
     
     const connectTwitch = () => {
         const privacyNotice = `PRIVACY NOTICE - Twitch Connection
